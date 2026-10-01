@@ -1,0 +1,14 @@
+# Binaries and build artifacts
+*.exe
+*.o
+backend
+homecloud
+
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local data directories
+cloud/
+downloads/
