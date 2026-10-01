@@ -28,6 +28,7 @@
 
 #include <zlib.h>
 
+// ---------------------- done ----------------------
 /* Switch stdin/stdout to binary mode on Windows and disable stdout buffering */
 static void init_io(void) {
     #ifdef _WIN32
@@ -41,6 +42,7 @@ static void init_io(void) {
     
 }
 
+// ---------------------- done ----------------------
 /* Read exactly n bytes from stdin into buf, handling short reads */
 static int read_exact(uint8_t *buf, size_t n) {
     while (n > 0) {
@@ -52,9 +54,10 @@ static int read_exact(uint8_t *buf, size_t n) {
     return 1;  /* success */
 }
 
+// ---------------------- done ----------------------
 /* Strip trailing \r and \n */
 static void trim_newline(char *s) {
-    /* TODO: trim from end */
+    s[strcspn(s, "\r\n")] = '\0';
 }
 
 /* Check file extension against already-compressed formats */
@@ -63,11 +66,37 @@ static int should_compress(const char *filename) {
     return 1;
 }
 
+// ---------------------- done ----------------------
 /* READ command: read file from disk and write to stdout */
 static void cmd_read(const char *path) {
-    /* TODO: fopen, ftell for size, read buffer, write "OK <size>\n" + data */
-}
+    FILE *fptr;
+    uint64_t FileLen;
 
+    fptr = fopen(path, "rb");
+    if (!fptr) { fprintf(stdout, "ERROR cannot open file\n"); return; } /*checks for null for file that didnt open correctly*/
+
+    fseek(fptr, 0, SEEK_END); /*goto end*/
+    FileLen = ftell(fptr);/*get size*/
+    fseek(fptr, 0, SEEK_SET);/*reset to start*/
+
+    uint8_t *buf = (uint8_t *)malloc((size_t)FileLen);/*make buffer*/
+    if (!buf) { fprintf(stdout, "ERROR out of memory\n"); fclose(fptr); return; }/*checks for null for a pointer that didnt malloc correctly*/
+
+    size_t got = fread(buf, 1, (size_t)FileLen, fptr); /*read out the binary size out of the file*/
+    fclose(fptr);/*file access isnt needed anymore; closing*/
+
+    if (got != FileLen) { /*checks if got isnt equal to the file len. if it isnt, the read didnt go right.*/
+        fprintf(stdout, "ERROR incomplete read\n");
+        free(buf);
+        return;
+    }
+
+    fprintf(stdout, "OK %llu\n", (unsigned long long)FileLen); /*printing that everything went okay*/
+    fwrite(buf, 1, (size_t)FileLen, stdout);
+
+    free(buf);/*Free the buffer's memory*/
+    fprintf(stderr, "[backend] READ %s → %llu bytes\n", path, (unsigned long long)FileLen);/*printout any errors done.*/
+}
 /* WRITE command: read size bytes from stdin and save to path */
 static void cmd_write(const char *args) {
     /* TODO: parse size & path, read_exact payload, write to file */
