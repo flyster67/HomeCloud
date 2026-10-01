@@ -21,6 +21,8 @@
 #include <stdint.h>
 #include <ctype.h>
 
+#define PATH_BUFFER 4096
+
 #ifdef _WIN32
   #include <io.h>
   #include <fcntl.h>
@@ -97,9 +99,43 @@ static void cmd_read(const char *path) {
     free(buf);/*Free the buffer's memory*/
     fprintf(stderr, "[backend] READ %s → %llu bytes\n", path, (unsigned long long)FileLen);/*printout any errors done.*/
 }
+
+
 /* WRITE command: read size bytes from stdin and save to path */
 static void cmd_write(const char *args) {
-    /* TODO: parse size & path, read_exact payload, write to file */
+    uint64_t size = 0;
+    char *end = NULL;
+    size = strtoull(args, &end, 10); /*get file size*/
+    while (*end == ' ') end++;
+
+    char path[PATH_BUFFER];
+    strncpy(path, end, sizeof(path) - 1); /*copy into path*/
+    path[sizeof(path) - 1] = '\0'; /*make into an actual string*/
+    trim_newline(path);/*remove newline*/
+
+    uint8_t *buf = (uint8_t *)malloc((size_t)size); /*make buffer*/
+    if (!buf) { fprintf(stdout, "ERROR out of memory\n"); return; } /*buffer safety checking*/
+
+    if (!read_exact(buf, (size_t)size)) {
+        fprintf(stdout, "ERROR incomplete data\n"); /*read exact binary amount and compare to size to see reading was done proprely*/
+        free(buf);
+        return;
+    }
+
+    FILE *fptr = fopen(path, "wb"); /*open to begin writing binary*/
+    if (!fptr) { fprintf(stdout, "ERROR cannot open file\n"); free(buf); return; } /*fptr safety check*/
+
+    size_t written = fwrite(buf, 1, (size_t)size, fptr); /*check if writing was actually done, fwrite returns an int*/
+    fclose(fptr); /*close file*/
+    free(buf); /*free buffer*/
+
+    if (written != size) { /*if the size of whats written is diffrent from the writing size*/
+        fprintf(stdout, "ERROR incomplete write\n");
+        return;
+    }
+
+    fprintf(stdout, "OK\n"); /*print OK to stdout(py frontend)*/
+    fprintf(stderr, "[backend] WRITE %s ← %llu bytes\n", path, (unsigned long long)size);
 }
 
 /* COMPRESS command: compress buffer if worthwhile, otherwise signal RAW */

@@ -42,4 +42,5 @@ python homecloud.py client <laptop_ip> 7878
 ## Origin
 i've had this laptop for a pretty long while,and its specs as a laptop are pretty bad. it has intengrated graphics and only 8gb ram & 500GB space.
 But - for something like a server/cloud, that is a lot more than enough.   
-so, i took the knowledge i learnt in magshimim & did some homework on libs and decided to make it myself, instead of vibecoding or looking for something that already exists.
+so, i took the knowledge i learnt in magshimim & did some homework on libs and decided to make it myself, instead of vibecoding(only skeleton and starting documentation is, rest is manually coded.)
+or looking for something that already exists.
