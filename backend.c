@@ -30,16 +30,26 @@
 
 /* Switch stdin/stdout to binary mode on Windows and disable stdout buffering */
 static void init_io(void) {
-    /* TODO:
-     * - On Windows set binary mode on stdin/stdout (_setmode)
-     * - setvbuf(stdout, NULL, _IONBF, 0)
-     */
+    #ifdef _WIN32
+        _setmode(_fileno(stdin),  _O_BINARY);
+        _setmode(_fileno(stdout), _O_BINARY);
+    #endif
+        /* Disable buffering on stdout so responses are sent immediately.
+        * Without this, fwrite output might sit in a buffer and Python
+        * blocks forever waiting for data that's stuck in libc's buffer. */
+        setvbuf(stdout, NULL, _IONBF, 0);
+    
 }
 
 /* Read exactly n bytes from stdin into buf, handling short reads */
 static int read_exact(uint8_t *buf, size_t n) {
-    /* TODO: loop fread until n bytes are read */
-    return 0;
+    while (n > 0) {
+        size_t got = fread(buf, 1, n, stdin);  /* reads from stdin pipe */
+        if (got == 0) return 0;                /* EOF or pipe broken */
+        buf += got;                            /* advance pointer */
+        n   -= got;                            /* decrease remaining count */
+    }
+    return 1;  /* success */
 }
 
 /* Strip trailing \r and \n */

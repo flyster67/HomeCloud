@@ -12,12 +12,20 @@ A minimal personal cloud server & client to turn a leftover laptop into local ne
 Compile the C backend:
 
 ```bash
-# Windows
-gcc backend.c -o backend.exe -lz
+# Windows (portable standalone binary, bakes in zlib)
+gcc backend.c -o backend.exe -lz -static
 
 # Linux
 gcc backend.c -o backend -lz
 ```
+
+## Dependencies
+
+- **Python 3.7+** (built-in standard library only: `socket`, `subprocess`, `struct`, `os`, `sys`).
+- **GCC / Clang** (C99+).
+- **zlib**:
+  - **Linux**: Pre-installed on virtually all distributions (`libz.so`).
+  - **Windows**: To compile, you need zlib installed locally (e.g., via MSYS2 `pacman -S mingw-w64-x86_64-zlib`). Adding `-static` during compilation bakes the library directly into `backend.exe`, so you don't need to ship `zlib1.dll` to other computers.
 
 ## Usage
 
