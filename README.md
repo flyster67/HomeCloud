@@ -44,3 +44,10 @@ i've had this laptop for a pretty long while,and its specs as a laptop are prett
 But - for something like a server/cloud, that is a lot more than enough.   
 so, i took the knowledge i learnt in magshimim & did some homework on libs and decided to make it myself, instead of vibecoding(only skeleton and starting documentation is, rest is manually coded.)
 or looking for something that already exists.
+
+## Disclaimer
+This project was created for learning purposes, to learn systems programming&library's and everyday personal use on a private network. It is **not** an enterprise/commercial production product:
+- It intentionally uses an IPC pipe architecture between C and Python to explore multi-language communication and binary protocols, despite knowing the limitations GIL puts on it.
+- It is built for a single-user home environment, not for high-concurrency multi-accessed enterprise scale.
+
+
