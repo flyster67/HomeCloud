@@ -22,6 +22,8 @@
 #include <ctype.h>
 
 #define PATH_BUFFER 4096
+#define MAX_EXT_SIZE 32
+#define MAX_FILE_NAME 512
 
 #ifdef _WIN32
   #include <io.h>
@@ -62,10 +64,30 @@ static void trim_newline(char *s) {
     s[strcspn(s, "\r\n")] = '\0';
 }
 
+// ---------------------- done ----------------------
 /* Check file extension against already-compressed formats */
 static int should_compress(const char *filename) {
     /* TODO: check extension (.zip, .jpg, .mp4, etc.) */
-    return 1;
+
+    static const char *skip[] = {
+        ".zip",".gz",".bz2",".xz",".7z",".zst",".lz4",".rar",".cab",
+        ".jpg",".jpeg",".png",".gif",".webp",".avif",
+        ".mp3",".aac",".ogg",".flac",".opus",
+        ".mp4",".mkv",".avi",".mov",".webm",
+        ".iso",".dmg", NULL
+    }; /*file extentions for skipping since theyre already 'zipped'*/
+
+    char *dot = strrchr(filename,'.'); /*get the data after the last .*/
+    if(!dot) return 1; /*safety check on pointer */
+
+    char ext[MAX_EXT_SIZE] = {0}; /*make extention string*/
+    for (int i = 0; i < sizeof(ext)-1 && dot[i]; i++) /*running through all letters*/
+        ext[i] = (char)tolower((unsigned char)dot[i]);/*lowering them for comparing*/
+
+    for(const char **s = skip; *s; s++)
+        if (strcmp(ext, *s) == 0) return 0; /*if the extention is found in skip, return 0 to know to not compress*/
+       
+    return 1; /*else return 1;*/
 }
 
 // ---------------------- done ----------------------
@@ -97,10 +119,10 @@ static void cmd_read(const char *path) {
     fwrite(buf, 1, (size_t)FileLen, stdout);
 
     free(buf);/*Free the buffer's memory*/
-    fprintf(stderr, "[backend] READ %s → %llu bytes\n", path, (unsigned long long)FileLen);/*printout any errors done.*/
+    fprintf(stderr, "[backend] READ %s → %llu bytes\n", path, (unsigned long long)FileLen);/*debug log for successful read*/
 }
 
-
+// ---------------------- done ----------------------
 /* WRITE command: read size bytes from stdin and save to path */
 static void cmd_write(const char *args) {
     uint64_t size = 0;
@@ -138,9 +160,38 @@ static void cmd_write(const char *args) {
     fprintf(stderr, "[backend] WRITE %s ← %llu bytes\n", path, (unsigned long long)size);
 }
 
+
+// ---------------------- done ----------------------
 /* COMPRESS command: compress buffer if worthwhile, otherwise signal RAW */
 static void cmd_compress(const char *args) {
-    /* TODO: parse filename + size, read payload, run zlib compress2, return COMPRESSED or RAW */
+    char filename[MAX_FILE_NAME] = {0}; /*make filename string*/
+    uint64_t size = 0;/*setup size*/
+
+    if (sscanf(args, "%511s %llu", filename, (unsigned long long *)&size) != 2) { fprintf(stdout, "ERROR bad compress args\n"); return; } /*sscanf and look for returned number of 2*/
+
+    uint8_t *buf = (uint8_t *)malloc((size_t)size);/*make buffer*/
+    if (!buf || !read_exact(buf, (size_t)size)) { fprintf(stdout, "RAW\n"); free(buf); return; }/*buffer safety checking*/
+
+    if (!should_compress(filename) || size <= 64) { fprintf(stdout, "RAW\n"); free(buf); return; } /*checks if file should be comrpessed at all*/
+
+    uLongf comp_bound = compressBound((uLong)size); /*calculate max buffer size for compressed output*/
+    uint8_t *comp = (uint8_t *)malloc(comp_bound); /*allocate memory for compressed data*/
+    if (!comp) { fprintf(stdout, "RAW\n"); free(buf); return; } /*comp buffer safety check*/
+
+    int ret = compress2(comp, &comp_bound, buf, (uLong)size, 6); /*compress data, comp_bound is overwritten with actual compressed size*/
+    free(buf); /*done with raw buffer, free it*/
+
+    if (ret != Z_OK || comp_bound >= size) { /*if compression failed or output is larger than original*/
+        fprintf(stdout, "RAW\n"); /*tell python to keep raw uncompressed file*/
+        free(comp);
+        return;
+    }
+
+    fprintf(stdout, "COMPRESSED %lu\n", (unsigned long)comp_bound); /*tell python size of compressed data*/
+    fwrite(comp, 1, comp_bound, stdout); /*write compressed binary data to pipe*/
+    free(comp); /*free buffer*/
+
+    fprintf(stderr, "[backend] COMPRESS %s: %llu → %lu bytes\n", filename, (unsigned long long)size, (unsigned long)comp_bound); /*debug log for compression*/
 }
 
 /* DECOMPRESS command: decompress payload back to original size */
